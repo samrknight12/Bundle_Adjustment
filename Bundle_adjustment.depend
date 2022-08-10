@@ -1,0 +1,10 @@
+# depslib dependency file v1.0
+1660103475 source:c:\users\samrk\documents\bundle_adjustment\bundle_adjustment\bundle_adjustment\main.cpp
+	<iostream>
+	<fstream>
+	<string>
+	<sstream>
+	<vector>
+	<Eigen/Dense>
+	<cmath>
+
