@@ -178,8 +178,11 @@ int main(){
         }
 
     }
-
+    int A_row = 0;
+    MatrixXd Ae(img_points.rows()*2,EOP.rows());
+    cout<<Ae.cols();
     for (int i=0;i<img_points.rows();i++){
+
         bool is_tie_point;
         bool is_control_point;
         unsigned int point_id = img_points(i,0);
@@ -188,8 +191,11 @@ int main(){
         unsigned int cur_eop_idx = findEOPIndex(EOP,image_id); //find the EOP index where the image ID of the EOP matches the image ID of the image point
         unsigned int cur_iop_idx = findIOPIndex(EOP(cur_eop_idx,1),IOP); //find the IOP index where the IOP camera ID matches the current indexed EOP's camera ID
 
+        int Ae_col = cur_eop_idx * 6;
+
         MatrixXd M(3,3);
         MatrixXd colinear_points(1,2);
+
 
         is_control_point = controlOrTiePoint(control_points,point_id); //find if the image point corresponds to a control point or tie point
         if (is_control_point == false){
@@ -217,6 +223,8 @@ int main(){
             colinearity_equations(IOP,U,V,W,colinear_points,cur_iop_idx);
 
         }
+
+        A_row = A_row+2;
 
     }
 }
