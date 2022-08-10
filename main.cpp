@@ -130,6 +130,45 @@ void colinearity_equations(MatrixXd IOP, float U, float V, float W, MatrixXd& co
     colinear_points(0,1) = IOP(cur_iop_idx,2) - (IOP(cur_iop_idx,3)*(V/W));
 }
 
+void calculateAe(MatrixXd& Ae, int A_row_idx, int Ae_col_idx, MatrixXd IOP, int cur_iop_idx, float U, float W, float V, MatrixXd M, MatrixXd EOP, int cur_eop_idx, MatrixXd gp, int gp_idx){
+    float degree_2_rad = M_PI / 180;
+    float w = EOP(cur_eop_idx,5)*degree_2_rad;
+    float phi = EOP(cur_eop_idx,6)*degree_2_rad;
+    float kappa = EOP(cur_eop_idx,7)*degree_2_rad;
+
+    //Derivatives WRT X
+    Ae(A_row_idx,Ae_col_idx) = (-1*IOP(cur_iop_idx,3)/(W*W))*((gp(gp_idx,2)-EOP(cur_eop_idx,3))*((U*M(2,2))-(W*M(0,2)))-(gp(gp_idx,3)-EOP(cur_eop_idx,4))*((U*M(2,1))-(W*M(0,1))));
+    Ae(A_row_idx,Ae_col_idx+1) = (-1*IOP(cur_iop_idx,3)/(W*W))*(((gp(gp_idx,1)-EOP(cur_eop_idx,2))*((-1*W*sin(phi)*cos(kappa))-(U*cos(phi))))+((gp(gp_idx,2)-EOP(cur_eop_idx,3))*((W*sin(w)*cos(phi)*cos(kappa))-(U*sin(w)*sin(phi))))+((gp(gp_idx,3)-EOP(cur_eop_idx,4))*((-1*W*cos(w)*cos(phi)*cos(kappa))+(U*cos(w)*sin(phi)))));
+    Ae(A_row_idx,Ae_col_idx+2) = -1*IOP(cur_iop_idx,3)*V/W;
+    Ae(A_row_idx,Ae_col_idx+3) = (-1*IOP(cur_iop_idx,3)/(W*W))*((M(2,0)*U)-(M(0,0)*W));
+    Ae(A_row_idx,Ae_col_idx+4) = (-1*IOP(cur_iop_idx,3)/(W*W))*((M(2,1)*U)-(M(0,1)*W));
+    Ae(A_row_idx,Ae_col_idx+5) = (-1*IOP(cur_iop_idx,3)/(W*W))*((M(2,2)*U)-(M(0,2)*W));
+
+    //Derivatives WRT Y
+    Ae(A_row_idx+1,Ae_col_idx) = (-1*IOP(cur_iop_idx,3)/(W*W))*((gp(gp_idx,2)-EOP(cur_eop_idx,3))*((V*M(2,2))-(W*M(1,2)))-(gp(gp_idx,3)-EOP(cur_eop_idx,4))*((V*M(2,1))-(W*M(1,1))));
+    Ae(A_row_idx+1,Ae_col_idx+1) = (-1*IOP(cur_iop_idx,3)/(W*W))*(((gp(gp_idx,1)-EOP(cur_eop_idx,2))*((W*sin(phi)*sin(kappa))-(V*cos(phi))))+((gp(gp_idx,2)-EOP(cur_eop_idx,3))*((-1*W*sin(w)*cos(phi)*sin(kappa))-(V*sin(w)*sin(phi))))+((gp(gp_idx,3)-EOP(cur_eop_idx,4))*((W*cos(w)*cos(phi)*sin(kappa))+(V*cos(w)*sin(phi)))));
+    Ae(A_row_idx+1,Ae_col_idx+2) = Ae(A_row_idx,Ae_col_idx+2) = -1*IOP(cur_iop_idx,3)*U/W;
+    Ae(A_row_idx+1,Ae_col_idx+3) = (-1*IOP(cur_iop_idx,3)/(W*W))*((M(2,0)*V)-(M(1,0)*W));
+    Ae(A_row_idx+1,Ae_col_idx+4) = (-1*IOP(cur_iop_idx,3)/(W*W))*((M(2,1)*V)-(M(1,1)*W));
+    Ae(A_row_idx+1,Ae_col_idx+5) = (-1*IOP(cur_iop_idx,3)/(W*W))*((M(2,2)*V)-(M(1,2)*W));
+
+}
+
+void calculateAo(MatrixXd& Ao, MatrixXd M, float U, float V, float W, MatrixXd IOP, unsigned int cur_iop_idx, unsigned int A_row_idx, unsigned int Ao_col_idx, bool is_tie_point, int point_idx){
+    float c = IOP(cur_iop_idx,3);
+    float term = -1*c/(W*W);
+    cout<<A_row_idx<<" "<<Ao_col_idx<<endl;
+
+    if(is_tie_point == true){
+        Ao(A_row_idx,Ao_col_idx) = term*((M(2,0)*U)-(M(0,0)*W));
+        Ao(A_row_idx,Ao_col_idx+1) = term*((M(2,1)*U)-(M(0,1)*W));
+        Ao(A_row_idx,Ao_col_idx+2) = term*((M(2,2)*U)-(M(0,2)*W));
+
+        Ao(A_row_idx+1,Ao_col_idx) = term*((M(2,0)*V)-(M(1,0)*W));
+        Ao(A_row_idx+1,Ao_col_idx+1) = term*((M(2,1)*V)-(M(1,1)*W));
+        Ao(A_row_idx+1,Ao_col_idx+2) = term*((M(2,2)*V)-(M(1,2)*W));
+    }
+}
 
 int main(){
     //Read all input data to eigen fixed matrices
@@ -178,8 +217,14 @@ int main(){
         }
 
     }
-
+    int A_row_idx = 0;
+    MatrixXd Ae(img_points.rows()*2,EOP.rows()*6);
+    MatrixXd Ao(img_points.rows()*2,tie_points.rows()*3);
+    Ao.fill(0);
+    cout<<Ao.rows()<<" "<<Ao.cols()<<endl;
+    //int Ao_col_idx = 0;
     for (int i=0;i<img_points.rows();i++){
+
         bool is_tie_point;
         bool is_control_point;
         unsigned int point_id = img_points(i,0);
@@ -188,14 +233,19 @@ int main(){
         unsigned int cur_eop_idx = findEOPIndex(EOP,image_id); //find the EOP index where the image ID of the EOP matches the image ID of the image point
         unsigned int cur_iop_idx = findIOPIndex(EOP(cur_eop_idx,1),IOP); //find the IOP index where the IOP camera ID matches the current indexed EOP's camera ID
 
+        int Ae_col_idx = cur_eop_idx * 6;
+
+
         MatrixXd M(3,3);
         MatrixXd colinear_points(1,2);
+
 
         is_control_point = controlOrTiePoint(control_points,point_id); //find if the image point corresponds to a control point or tie point
         if (is_control_point == false){
             // Tie point loop. All observations are considered for both the Ao and Ae design matrices.
             is_tie_point = true;
             unsigned int cur_tie_idx = findtieIndex(point_id, tie_points);
+            int Ao_col_idx = cur_tie_idx * 3;
 
             rotationMatrix(M,EOP,cur_eop_idx);
             float U = uNumber(M, tie_points, EOP, cur_tie_idx, cur_eop_idx);
@@ -203,11 +253,16 @@ int main(){
             float W = wNumber(M, tie_points, EOP, cur_tie_idx, cur_eop_idx);
 
             colinearity_equations(IOP,U,V,W,colinear_points,cur_iop_idx);
+            calculateAe(Ae,A_row_idx,Ae_col_idx,IOP,cur_iop_idx,U,W,V,M,EOP,cur_eop_idx,tie_points,cur_tie_idx);
+            calculateAo(Ao,M,U,V,W,IOP,cur_iop_idx,A_row_idx,Ao_col_idx,is_tie_point,cur_tie_idx);
+
+            //Ao_col_idx = Ao_col_idx + 3;
         }
         else{
             // Control point loop. GCP are considered constant so the observation is only included in the Ae matrix not the Ao.
             is_tie_point = false;
             unsigned int cur_control_idx = findControlIndex(point_id, control_points);
+
 
             rotationMatrix(M,EOP,cur_eop_idx);
             float U = uNumber(M, control_points, EOP, cur_control_idx, cur_eop_idx);
@@ -215,8 +270,23 @@ int main(){
             float W = wNumber(M, control_points, EOP, cur_control_idx, cur_eop_idx);
 
             colinearity_equations(IOP,U,V,W,colinear_points,cur_iop_idx);
-
+            calculateAe(Ae,A_row_idx,Ae_col_idx,IOP,cur_iop_idx,U,W,V,M,EOP,cur_eop_idx,control_points,cur_control_idx);
+            calculateAo(Ao,M,U,V,W,IOP,cur_iop_idx,A_row_idx,0,is_tie_point,0);
         }
 
+        A_row_idx = A_row_idx+2;
+
+//        for (int i=0; i<Ao.rows(); i++){
+//            for (int j=0;j<Ao.cols();j++){
+//            cout<<Ao(i,j)<<" ";
+//        }
+//        cout<<endl;
+//    }
+    }
+    for (int i=0; i<Ao.rows(); i++){
+        for (int j=0;j<Ao.cols();j++){
+            cout<<Ao(i,j)<<" ";
+        }
+        cout<<endl;
     }
 }
